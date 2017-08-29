@@ -18,19 +18,19 @@ let
   nativeBuildInputs = [ autoreconfHook perl pkgconfig ];
   buildInputs = [ openssl ];
 };
-mininet = stdenv.mkDerivation {
-  name = "mininet-2.2.2";
-  src = fetchFromGitHub {
+mininet-src = fetchFromGitHub {
     owner = "mininet";
     repo = "mininet";
-    rev = "2.2.2";
-    sha256 = "18w9vfszhnx4j3b8dd1rvrg8xnfk6rgh066hfpzspzqngd5qzakg";
+    rev = "87e26ef931ee6063332ceba77db472140f832d3a";
+    sha256 = "0rwlnd486zz6ivj7ywf1i43ig2yjl0aysh8nwf9wf6zdy8wjgp0i";
   };
-  buildInputs = [ openflow openvswitch python pythonPackages.setuptools help2man ethtool iproute socat psmisc iperf libcgroup ];
+mininet-internal = stdenv.mkDerivation {
+  name = "mininet-internal-2.2.2";
+  src = mininet-src;
+  buildInputs = [ openflow openvswitch python help2man ethtool iproute socat psmisc iperf libcgroup ];
   buildPhase = ''
     make mnexec
     make mn.1 mnexec.1
-    ${python.interpreter} setup.py build
   '';
   installPhase = ''
     mkdir -p $out/share/man/man1
@@ -38,11 +38,13 @@ mininet = stdenv.mkDerivation {
     install mnexec $out/bin
     install mn.1 $out/share/man/man1
     install mnexec.1 $out/share/man/man1
-    target=$out/lib/python2.7/site-packages/
-    export PYTHONPATH=$PYTHONPATH:$target
-    mkdir -p $target
-    ${python.interpreter} setup.py install --prefix=$out --single-version-externally-managed --record egg-ynfo
   '';
+};
+mininet = pythonPackages.buildPythonApplication {
+  name = "mininet-2.2.2";
+  src = mininet-src;
+  buildInputs = [ openflow openvswitch ethtool iproute socat psmisc iperf ];
+  propagatedBuildInputs = [ mininet-internal ];
 };
 in
 pythonPackages.buildPythonApplication {
@@ -53,5 +55,16 @@ pythonPackages.buildPythonApplication {
     rev = "v0.3.0";
     sha256 = "1csnm8gx68mhbsdkcfjvs6sa4h7fnzhgkqz8iiyrvn1y7caaxp49";
   };
-  buildInputs = [ mininet nlsr nfd ];
+  buildInputs = [ nlsr nfd pythonPackages.wrapPython mininet ];
+  pythonPath = [ mininet ];
+  postInstall = ''
+    mkdir -p $out/etc/mini-ndn
+    cp ndn_utils/topologies/* ndn_utils/client.conf.sample $out/etc/mini-ndn
+  '';
+  fixupPhase = ''
+    sed -i "1i #!${python.interpreter}" $out/bin/minindn{,edit}
+    substituteInPlace $out/bin/minindn --replace "/usr/local" "$out"
+    chmod +x $out/bin/minindn{,edit}
+    wrapPythonPrograms
+  '';
 }
