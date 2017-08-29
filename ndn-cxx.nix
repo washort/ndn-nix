@@ -1,8 +1,8 @@
-{ stdenv, fetchFromGitHub, openssl, doxygen, boost, sqlite, cryptopp, pkgconfig, python, pythonPackages }:
+{ stdenv, wafBuild, fetchFromGitHub, openssl, doxygen, boost, sqlite, cryptopp, pythonPackages }:
 let
   version = "0.5.1";
 in
-stdenv.mkDerivation {
+wafBuild {
   name = "ndn-cxx-${version}";
 
   src = fetchFromGitHub {
@@ -12,26 +12,16 @@ stdenv.mkDerivation {
     sha256 = "09yaqswmaafm9zcj8bskaplx6315xzhz3m5w8r2qvx1x8lq5hp73";
   };
 
-  buildInputs = [ openssl doxygen boost sqlite cryptopp pkgconfig python pythonPackages.sphinx ];
-  preConfigure = ''
-    patchShebangs waf
-    ./waf configure \
-      --with-cryptopp="${cryptopp}" \
-      --with-openssl="${openssl.dev}" \
-      --boost-includes="${boost.dev}/include" \
-      --boost-libs="${boost.out}/lib" \
-      --prefix="$out"
-  '';
-  buildPhase = ''
-    ./waf
-  '';
+  buildInputs = [ openssl doxygen boost sqlite cryptopp pythonPackages.sphinx ];
+  wafConfigureFlags = [
+      "--with-cryptopp='${cryptopp}'"
+      "--with-openssl='${openssl.dev}'"
+      "--boost-includes='${boost.dev}/include'"
+      "--boost-libs='${boost.out}/lib'"];
   # To do battle with the tests, add --with-tests to the configure above. ~ C.
   doCheck = false;
   checkPhase = ''
     LD_LIBRARY_PATH=build/ build/unit-tests
-  '';
-  installPhase = ''
-    ./waf install
   '';
   outputs = [ "dev" "out" "doc" ];
   meta = with stdenv.lib; {

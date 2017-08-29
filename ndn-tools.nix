@@ -1,8 +1,8 @@
-{ stdenv, fetchFromGitHub, openssl, boost, pkgconfig,
-  python, pythonPackages, libpcap, git, ndn-cxx }:
+{ stdenv, wafBuild, fetchFromGitHub, openssl, boost,
+  pythonPackages, libpcap, git, ndn-cxx }:
 let
   version = "0.4";
-in stdenv.mkDerivation {
+in wafBuild {
   name = "ndn-tools-${version}";
 
   src = fetchFromGitHub {
@@ -12,20 +12,12 @@ in stdenv.mkDerivation {
     sha256 = "19mrsbhv67ps3l2c8hds9d0gwjawpq1a3jnb917qqig0n6zs29vz";
   };
 
-  buildInputs = [ libpcap openssl boost pkgconfig python pythonPackages.sphinx git ndn-cxx ];
-  preConfigure = ''
-    patchShebangs waf
-    ./waf configure \
-      --boost-includes="${boost.dev}/include" \
-      --boost-libs="${boost.out}/lib" \
-      --prefix="$out"
-  '';
-  buildPhase = ''
-    ./waf
-  '';
-  installPhase = ''
-    ./waf install
-  '';
+  buildInputs = [ libpcap openssl boost pythonPackages.sphinx git ndn-cxx ];
+  wafConfigureFlags = [
+      "--boost-includes='${boost.dev}/include'"
+      "--boost-libs='${boost.out}/lib'"
+      "--prefix='$out'"
+  ];
   outputs = [ "out" "dev" "doc" ];
   meta = with stdenv.lib; {
     homepage = "http://named-data.net/";
